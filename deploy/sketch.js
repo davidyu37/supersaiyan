@@ -1,219 +1,147 @@
-let faceapi;
-let video;
-let detections;
-let width = 360;
-let height = 280;
-let canvas, ctx;
-let data = [];
-let brain = null;
+const videoWidth = window.screen.width;
+const videoHeight = window.screen.height;
 
-// relative path to your models from window.location.pathname
-const detection_options = {
-  withLandmarks: true,
-  withDescriptors: true,
-  Mobilenetv1Model: "models",
-  FaceLandmarkModel: "models",
-  FaceRecognitionModel: "models"
-};
+let video;
+let poseNet;
+let poses = [];
+let ctx;
+let state = "normal";
 
 const custom_model = {
-  model: "model_v2.json",
-  metadata: "model_meta_v2.json",
-  weights: "model.weights_v2.bin"
+  model: "../models/model.json",
+  metadata: "../models/model_meta.json",
+  weights: "../models/model.weights.bin"
 };
 
-async function make() {
-  // get the video
-  video = await getVideo();
+function setup() {
+  ctx = createCanvas(videoWidth, videoHeight);
+  video = createCapture(VIDEO);
+  video.size(width, height);
 
-  canvas = createCanvas(width, height);
-  ctx = canvas.getContext("2d");
-
-  faceapi = ml5.faceApi(video, detection_options, modelReady);
+  // Create a new poseNet method with a single detection
+  poseNet = ml5.poseNet(video, modelReady);
+  // This sets up an event that fills the global variable "poses"
+  // with an array every time new poses are detected
+  poseNet.on("pose", function(results) {
+    poses = results;
+    gotPoses(poses);
+  });
 
   loadBrain();
+  // Hide the video element, and just show the canvas
+  video.hide();
+}
+
+function gotPoses(poses) {
+  // console.log(poses);
+  if (poses.length > 0) {
+    pose = poses[0].pose;
+    skeleton = poses[0].skeleton;
+    if (pose) {
+      classifyPose(pose);
+    }
+  }
 }
 
 function loadBrain() {
   let options = {
-    inputs: 74,
+    inputs: 34,
     outputs: 2,
-    task: "classification"
+    task: "classification",
+    debug: true
   };
   brain = ml5.neuralNetwork(options);
 
   brain.load(custom_model, brainLoaded);
 }
 
-window.addEventListener("DOMContentLoaded", function() {
-  make();
-});
-
-// When custom model is loaded
 function brainLoaded() {
-  console.log("face classification ready!");
-  // classifyFace();
+  console.log("pose classification ready!");
 }
 
-function classifyFace(inputs) {
-  brain.classify(inputs, gotResult);
-}
-
-function gotResult(err, result) {
-  if (err) return console.error(err);
-
-  if (result) {
-    let normal, open;
-    if (result[0].label === "normal") {
-      normal = result[0];
-      open = result[1];
-    } else {
-      normal = result[1];
-      open = result[0];
+function classifyPose(pose) {
+  if (pose) {
+    let inputs = [];
+    for (let i = 0; i < pose.keypoints.length; i++) {
+      let x = pose.keypoints[i].position.x;
+      let y = pose.keypoints[i].position.y;
+      inputs.push(x);
+      inputs.push(y);
     }
-    if (normal.confidence > open.confidence) {
-      console.log("normal face");
+    brain.classify(inputs, gotResult);
+  }
+}
+
+function gotResult(error, results) {
+  if (results[0] && results[1]) {
+    const normal = results[0].label === "normal" ? results[0] : results[1];
+    const constipated =
+      results[0].label === "constipated" ? results[0] : results[1];
+    if (normal.confidence > constipated.confidence) {
+      state = "constipated";
       return;
     }
-    console.log("open mouth");
+    state = "normal";
   }
-}
-
-function toggleDataCollection() {
-  if (collecting) {
-    collectBtn.innerText = "Collect";
-  } else {
-    collectBtn.innerText = "Stop";
-  }
-  collecting = !collecting;
-}
-
-function saveData() {
-  brain.saveData();
 }
 
 function modelReady() {
-  console.log("ready!");
-  faceapi.detect(gotFace);
+  select("#status").html("Model Loaded");
 }
 
-function gotFace(err, result) {
-  if (err) {
-    console.log(err);
-    return;
+function draw() {
+  image(video, 0, 0, width, height);
+
+  if (state === "normal") {
+    textSize(200);
+    text("Normal", width / 8, height / 2);
   }
 
-  detections = result;
+  if (state === "constipated") {
+    textSize(200);
+    text("Constipated", width / 8, height / 2);
+  }
 
-  // Clear part of the canvas
-  ctx.fillStyle = "#000000";
-  ctx.fillRect(0, 0, width, height);
+  // We can call both functions to draw all keypoints and the skeletons
+  // drawKeypoints();
+  // drawSkeleton();
+}
 
-  ctx.drawImage(video, 0, 0, width, height);
-
-  if (detections) {
-    if (detections.length > 0) {
-      drawBox(detections);
-      drawLandmarks(detections);
-
-      const {
-        parts: { mouth, jawOutline }
-      } = detections[0];
-
-      const inputs = [];
-
-      mouth.forEach(point => {
-        const { _x, _y } = point;
-        inputs.push(_x);
-        inputs.push(_y);
-      });
-
-      jawOutline.forEach(point => {
-        const { _x, _y } = point;
-        inputs.push(_x);
-        inputs.push(_y);
-      });
-
-      classifyFace(inputs);
+// A function to draw ellipses over the detected keypoints
+function drawKeypoints() {
+  // Loop through all the poses detected
+  for (let i = 0; i < poses.length; i++) {
+    // For each pose detected, loop through all the keypoints
+    let pose = poses[i].pose;
+    for (let j = 0; j < pose.keypoints.length; j++) {
+      // A keypoint is an object describing a body part (like rightArm or leftShoulder)
+      let keypoint = pose.keypoints[j];
+      // Only draw an ellipse is the pose probability is bigger than 0.2
+      if (keypoint.score > 0.2) {
+        fill(255, 0, 0);
+        noStroke();
+        ellipse(keypoint.position.x, keypoint.position.y, 10, 10);
+      }
     }
   }
-  faceapi.detect(gotFace);
 }
 
-function drawBox(detections) {
-  for (let i = 0; i < detections.length; i++) {
-    const alignedRect = detections[i].alignedRect;
-    const x = alignedRect._box._x;
-    const y = alignedRect._box._y;
-    const boxWidth = alignedRect._box._width;
-    const boxHeight = alignedRect._box._height;
-
-    ctx.beginPath();
-    ctx.rect(x, y, boxWidth, boxHeight);
-    ctx.strokeStyle = "#a15ffb";
-    ctx.stroke();
-    ctx.closePath();
-  }
-}
-
-function drawLandmarks(detections) {
-  for (let i = 0; i < detections.length; i++) {
-    const mouth = detections[i].parts.mouth;
-    const nose = detections[i].parts.nose;
-    const leftEye = detections[i].parts.leftEye;
-    const rightEye = detections[i].parts.rightEye;
-    const rightEyeBrow = detections[i].parts.rightEyeBrow;
-    const leftEyeBrow = detections[i].parts.leftEyeBrow;
-
-    drawPart(mouth, true);
-    drawPart(nose, false);
-    drawPart(leftEye, true);
-    drawPart(leftEyeBrow, false);
-    drawPart(rightEye, true);
-    drawPart(rightEyeBrow, false);
-  }
-}
-
-function drawPart(feature, closed) {
-  ctx.beginPath();
-  for (let i = 0; i < feature.length; i++) {
-    const x = feature[i]._x;
-    const y = feature[i]._y;
-
-    if (i === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
+// A function to draw the skeletons
+function drawSkeleton() {
+  // Loop through all the skeletons detected
+  for (let i = 0; i < poses.length; i++) {
+    let skeleton = poses[i].skeleton;
+    // For every skeleton, loop through all body connections
+    for (let j = 0; j < skeleton.length; j++) {
+      let partA = skeleton[j][0];
+      let partB = skeleton[j][1];
+      stroke(255, 0, 0);
+      line(
+        partA.position.x,
+        partA.position.y,
+        partB.position.x,
+        partB.position.y
+      );
     }
   }
-
-  if (closed === true) {
-    ctx.closePath();
-  }
-  ctx.stroke();
-}
-
-// Helper Functions
-async function getVideo() {
-  // Grab elements, create settings, etc.
-  const videoElement = document.createElement("video");
-  videoElement.setAttribute("style", "display: none;");
-  videoElement.width = width;
-  videoElement.height = height;
-  document.body.appendChild(videoElement);
-
-  // Create a webcam capture
-  const capture = await navigator.mediaDevices.getUserMedia({ video: true });
-  videoElement.srcObject = capture;
-  videoElement.play();
-
-  return videoElement;
-}
-
-function createCanvas(w, h) {
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  document.body.appendChild(canvas);
-  return canvas;
 }

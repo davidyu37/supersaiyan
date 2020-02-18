@@ -14,7 +14,7 @@ function setup() {
 
 function dataReady() {
   brain.normalizeData();
-  brain.train({ epochs: 500 }, finished);
+  brain.train({ epochs: 150 }, finished);
 }
 
 function finished() {
