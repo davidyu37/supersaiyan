@@ -56,9 +56,9 @@ class PowerLevel {
 }
 
 const custom_model = {
-  model: "./models/model_v2.json",
-  metadata: "./models/model_meta_v2.json",
-  weights: "./models/model.weights_v2.bin"
+  model: "assets/models/model_v2.json",
+  metadata: "assets/models/model_meta_v2.json",
+  weights: "assets/models/model.weights_v2.bin"
 };
 
 function preload() {
