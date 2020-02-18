@@ -56,9 +56,9 @@ class PowerLevel {
 }
 
 const custom_model = {
-  model: "../models/model_v2.json",
-  metadata: "../models/model_meta_v2.json",
-  weights: "../models/model.weights_v2.bin"
+  model: "./models/model_v2.json",
+  metadata: "./models/model_meta_v2.json",
+  weights: "./models/model.weights_v2.bin"
 };
 
 function preload() {
@@ -142,8 +142,9 @@ function gotResult(error, results) {
       if (state !== "charging") {
         console.log("activate charge");
         explodeSound.play();
-        chargeSound.stop();
-        chargeSound.loop();
+        if (!chargeSound.isLooping()) {
+          chargeSound.loop();
+        }
       }
 
       if (checkSupersaiyan()) {
@@ -156,11 +157,12 @@ function gotResult(error, results) {
       return;
     } else {
       if (state !== "normal") {
+        chargeSound.stop();
         if (checkSupersaiyan()) {
-          chargeSound.stop();
-          chargeSound.loop();
-        } else {
-          chargeSound.stop();
+          console.log("super saiyan not charge");
+          if (!chargeSound.isLooping()) {
+            chargeSound.loop();
+          }
         }
       }
       state = "normal";
