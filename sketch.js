@@ -10,7 +10,7 @@ let currentCharge = 2;
 let transformComplete = false;
 
 let super_saiyan_hair, goku_hair, aurora;
-let explodeSound, chargeSound;
+let explodeSound, chargeSound, saiyanFont;
 
 class PowerLevel {
   constructor(initialPowerLevel) {
@@ -35,17 +35,23 @@ class PowerLevel {
       .toString()
       .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-    const showText = `Power Level: ${addedComma}`;
+    const showText = `Power Level`;
+    const showNumber = `${addedComma}`;
     const fontSize = 60;
+    const nWidth = textWidth(showNumber);
     const tWidth = textWidth(showText);
     const startX = 100;
     const startY = 100;
+    const containerWidth = nWidth < tWidth ? tWidth : nWidth;
     noStroke();
     fill(4, 228, 147, 200);
-    rect(startX - 20, startY - 80, tWidth + 40, fontSize * 2, 20);
+    rect(startX - 20, startY - 80, containerWidth + 20, fontSize * 3, 20);
     fill(247, 255, 177);
+    textFont(saiyanFont);
     textSize(fontSize);
     text(showText, startX, startY);
+    textFont("Helvetica");
+    text(showNumber, startX, startY + fontSize);
   }
 }
 
@@ -62,6 +68,7 @@ function preload() {
   soundFormats("mp3", "ogg");
   explodeSound = loadSound("assets/charge-explode.mp3");
   chargeSound = loadSound("assets/charging.mp3");
+  saiyanFont = loadFont("assets/Saiyan-Sans.ttf");
 }
 
 function setup() {
