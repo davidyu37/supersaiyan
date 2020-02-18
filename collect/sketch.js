@@ -6,6 +6,7 @@ let poseNet;
 let poses = [];
 let targetLabel = "normal";
 let collecting = false;
+let collectTime = 100000;
 
 function setup() {
   createCanvas(videoWidth, videoHeight);
@@ -47,6 +48,7 @@ function toggleLabel() {
   }
   targetLabel = "constipated";
   labelBtn.innerText = "Constipated";
+  collectTime = 60000;
 }
 
 function toggleDataCollection() {
@@ -60,7 +62,7 @@ function toggleDataCollection() {
     setTimeout(() => {
       collecting = false;
       collectBtn.innerText = "Collect";
-    }, 60000);
+    }, collectTime);
   }, 5000);
 }
 

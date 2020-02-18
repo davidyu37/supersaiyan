@@ -8,9 +8,9 @@ let ctx;
 let state = "normal";
 
 const custom_model = {
-  model: "../models/model.json",
-  metadata: "../models/model_meta.json",
-  weights: "../models/model.weights.bin"
+  model: "../models/model_v2.json",
+  metadata: "../models/model_meta_v2.json",
+  weights: "../models/model.weights_v2.bin"
 };
 
 function setup() {
@@ -73,15 +73,17 @@ function classifyPose(pose) {
 }
 
 function gotResult(error, results) {
+  console.log(results);
   if (results[0] && results[1]) {
     const normal = results[0].label === "normal" ? results[0] : results[1];
     const constipated =
       results[0].label === "constipated" ? results[0] : results[1];
-    if (normal.confidence > constipated.confidence) {
+    if (constipated.confidence > 0.9) {
       state = "constipated";
       return;
+    } else {
+      state = "normal";
     }
-    state = "normal";
   }
 }
 
@@ -93,11 +95,13 @@ function draw() {
   image(video, 0, 0, width, height);
 
   if (state === "normal") {
+    fill(255, 0, 0);
     textSize(200);
     text("Normal", width / 8, height / 2);
   }
 
   if (state === "constipated") {
+    fill(255, 0, 0);
     textSize(200);
     text("Constipated", width / 8, height / 2);
   }
